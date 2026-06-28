@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>DELTA — SaaS Financial Intelligence Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#07090d;--sur:#0d1117;--s2:#131a24;--s3:#192030;--bor:#1e2a3a;--txt:#f0f4f8;--mut:#7a8fa6;--acc:#00C2E8;--grn:#10b981;--yel:#f59e0b;--red:#ef4444;--pur:#8b5cf6;--ora:#f97316}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--txt);font-size:14px}
+::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-thumb{background:var(--bor);border-radius:2px}
+/* NAV */
+.nav{background:var(--sur);border-bottom:1px solid var(--bor);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;gap:12px}
+.logo{font-size:17px;font-weight:700;letter-spacing:-.03em;white-space:nowrap}.logo span{color:var(--acc)}
+.nbadge{font-family:monospace;font-size:11px;color:var(--mut);background:var(--s2);padding:4px 10px;border-radius:6px;border:1px solid var(--bor)}
+/* TABS */
+.tabs{background:var(--sur);border-bottom:1px solid var(--bor);padding:0 28px;display:flex;gap:0;overflow-x:auto}
+.tab{padding:12px 20px;font-size:13px;font-weight:500;color:var(--mut);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;background:none;border-top:none;border-left:none;border-right:none}
+.tab.on{color:var(--acc);border-bottom-color:var(--acc)}.tab:hover:not(.on){color:var(--txt)}
+/* PANELS */
+.panel{display:none;padding:24px 28px}.panel.on{display:block}
+/* KPI GRID */
+.kg{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:24px}
+.kc{background:var(--sur);border:1px solid var(--bor);border-radius:12px;padding:18px 20px;position:relative;overflow:hidden;transition:border-color .2s}
+.kc:hover{border-color:var(--acc)}
+.kc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.kc.a::before{background:var(--acc)}.kc.g::before{background:var(--grn)}.kc.y::before{background:var(--yel)}
+.kc.r::before{background:var(--red)}.kc.p::before{background:var(--pur)}.kc.o::before{background:var(--ora)}
+.kl{font-size:11px;font-weight:500;color:var(--mut);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px}
+.kv{font-size:28px;font-weight:700;letter-spacing:-.02em;line-height:1}
+.ks{font-size:12px;color:var(--mut);margin-top:6px}
+.up{color:var(--grn)}.dn{color:var(--red)}.nu{color:var(--mut)}
+/* CHART GRIDS */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px}
+.g2 .wide{grid-column:span 2}
+.cc{background:var(--sur);border:1px solid var(--bor);border-radius:12px;padding:18px 20px;transition:border-color .2s}
+.cc:hover{border-color:#2a3a4a}
+.ct{font-size:13px;font-weight:600;margin-bottom:3px}.cs{font-size:11px;color:var(--mut);margin-bottom:14px}
+.cw{position:relative;height:220px}.cw.t{height:280px}.cw.s{height:160px}
+/* TABLE */
+.tw{background:var(--sur);border:1px solid var(--bor);border-radius:12px;overflow:hidden;margin-bottom:16px}
+.th{padding:14px 20px;border-bottom:1px solid var(--bor);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.th h3{font-size:13px;font-weight:600}
+.srch{background:var(--s2);border:1px solid var(--bor);border-radius:6px;padding:6px 12px;font-size:12px;color:var(--txt);outline:none;width:170px}
+.srch:focus{border-color:var(--acc)}
+table{width:100%;border-collapse:collapse}
+th{font-size:11px;font-weight:500;color:var(--mut);letter-spacing:.08em;text-transform:uppercase;padding:10px 16px;text-align:left;background:var(--s2);border-bottom:1px solid var(--bor);white-space:nowrap;cursor:pointer;user-select:none}
+th:hover{color:var(--txt)}
+td{padding:10px 16px;border-bottom:1px solid var(--bor);font-size:13px;white-space:nowrap}
+tr:last-child td{border-bottom:none}tr:hover td{background:var(--s2)}
+.badge{display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:99px}
+.bsb{background:rgba(139,92,246,.15);color:#a78bfa}.bsc{background:rgba(0,194,232,.12);color:var(--acc)}
+.bsd{background:rgba(16,185,129,.12);color:var(--grn)}.bpu{background:rgba(249,115,22,.12);color:var(--ora)}
+/* FILTERS */
+.fr{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center}
+.fsel{background:var(--sur);border:1px solid var(--bor);border-radius:6px;padding:6px 12px;font-size:12px;color:var(--txt);outline:none;cursor:pointer}
+.fsel:focus{border-color:var(--acc)}
+/* RESPONSIVE */
+@media(max-width:900px){.g2,.g3{grid-template-columns:1fr}.g2 .wide{grid-column:1}.kg{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.nav,.panel{padding:12px 16px}.tabs{padding:0 12px}.kg{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<div class="nav">
+  <div class="logo">DELTA<span>.</span></div>
+  <span class="nbadge">SaaS Financial Intelligence · 12 Companies · 5Y Monthly Data</span>
+  <span style="font-size:12px;color:var(--mut)">Dec 2025</span>
+</div>
+
+<div class="tabs">
+  <button class="tab on"  onclick="sw(this,'ov')">Overview</button>
+  <button class="tab"     onclick="sw(this,'gr')">Growth & Revenue</button>
+  <button class="tab"     onclick="sw(this,'ue')">Unit Economics</button>
+  <button class="tab"     onclick="sw(this,'co')">Company Scorecard</button>
+  <button class="tab"     onclick="sw(this,'se')">Sector Benchmarks</button>
+</div>
+
+<!-- OVERVIEW -->
+<div class="panel on" id="p-ov">
+  <div class="kg">
+    <div class="kc a"><div class="kl">Portfolio ARR</div><div class="kv" id="kArr">$2.1T</div><div class="ks"><span class="up">▲ 6,149% 5Y CAGR</span></div></div>
+    <div class="kc g"><div class="kl">Avg Net Revenue Retention</div><div class="kv">105.4%</div><div class="ks nu">Expansion dominant</div></div>
+    <div class="kc y"><div class="kl">Avg Gross Margin</div><div class="kv">76.9%</div><div class="ks nu">SaaS benchmark: 70%</div></div>
+    <div class="kc p"><div class="kl">Avg Rule of 40</div><div class="kv">21.1</div><div class="ks nu">Target ≥ 40</div></div>
+    <div class="kc o"><div class="kl">Avg EBITDA Margin</div><div class="kv">2.9%</div><div class="ks nu">12-company avg</div></div>
+    <div class="kc r"><div class="kl">Avg Logo Churn</div><div class="kv">1.42%</div><div class="ks nu">Monthly avg</div></div>
+  </div>
+  <div class="g2"><div class="cc wide"><div class="ct">Portfolio ARR & MRR — 60-Month Trend</div><div class="cs">Aggregate across all 12 companies · USD Millions (log scale)</div><div class="cw t"><canvas id="c-arrMrr"></canvas></div></div></div>
+  <div class="g3">
+    <div class="cc"><div class="ct">Net Revenue Retention</div><div class="cs">Monthly avg · >100% = expansion</div><div class="cw"><canvas id="c-nrr"></canvas></div></div>
+    <div class="cc"><div class="ct">Gross Margin %</div><div class="cs">Monthly avg · benchmark 70%</div><div class="cw"><canvas id="c-gm"></canvas></div></div>
+    <div class="cc"><div class="ct">Rule of 40 Score</div><div class="cs">Growth + EBITDA · target ≥40</div><div class="cw"><canvas id="c-r40"></canvas></div></div>
+  </div>
+</div>
+
+<!-- GROWTH -->
+<div class="panel" id="p-gr">
+  <div class="kg">
+    <div class="kc a"><div class="kl">Portfolio MRR</div><div class="kv">$177B</div><div class="ks nu">Dec 2025</div></div>
+    <div class="kc g"><div class="kl">Avg YoY Growth</div><div class="kv">17.9%</div><div class="ks nu">Latest annual</div></div>
+    <div class="kc y"><div class="kl">Total Cash Burn</div><div class="kv">$6.3B</div><div class="ks nu">Monthly portfolio total</div></div>
+    <div class="kc p"><div class="kl">Companies</div><div class="kv">12</div><div class="ks nu">Series B → Public</div></div>
+  </div>
+  <div class="g2">
+    <div class="cc"><div class="ct">MRR Components</div><div class="cs">New vs Expansion vs Churned — last 11 months</div><div class="cw t"><canvas id="c-wfall"></canvas></div></div>
+    <div class="cc"><div class="ct">EBITDA Margin Trend</div><div class="cs">Monthly avg across portfolio · %</div><div class="cw t"><canvas id="c-ebitda"></canvas></div></div>
+  </div>
+  <div class="g2">
+    <div class="cc"><div class="ct">Logo Churn Rate</div><div class="cs">Monthly avg · lower is better</div><div class="cw"><canvas id="c-churn"></canvas></div></div>
+    <div class="cc"><div class="ct">Cash Burn (Portfolio Total)</div><div class="cs">Monthly total · USD Thousands</div><div class="cw"><canvas id="c-burn"></canvas></div></div>
+  </div>
+</div>
+
+<!-- UNIT ECONOMICS -->
+<div class="panel" id="p-ue">
+  <div class="kg">
+    <div class="kc a"><div class="kl">Avg LTV/CAC Ratio</div><div class="kv">12,459x</div><div class="ks up">▲ Benchmark: >3x</div></div>
+    <div class="kc g"><div class="kl">Avg NRR</div><div class="kv">105.4%</div><div class="ks nu">Best-in-class >120%</div></div>
+    <div class="kc y"><div class="kl">Avg Payback Period</div><div class="kv">~14 mo</div><div class="ks nu">Target: <12 months</div></div>
+    <div class="kc o"><div class="kl">Avg Gross Margin</div><div class="kv">76.9%</div><div class="ks up">▲ Above SaaS median</div></div>
+  </div>
+  <div class="g2">
+    <div class="cc"><div class="ct">LTV/CAC Ratio Trend</div><div class="cs">Monthly avg · log scale · benchmark ≥3x</div><div class="cw t"><canvas id="c-ltvcac"></canvas></div></div>
+    <div class="cc"><div class="ct">LTV/CAC by Company</div><div class="cs">Latest snapshot · all 12 companies</div><div class="cw t"><canvas id="c-coLtv"></canvas></div></div>
+  </div>
+  <div class="g2">
+    <div class="cc"><div class="ct">NRR by Company</div><div class="cs">Latest · 100% = break-even retention</div><div class="cw"><canvas id="c-coNrr"></canvas></div></div>
+    <div class="cc"><div class="ct">Growth vs EBITDA Scatter (Rule of 40)</div><div class="cs">Cyan = R40≥40 elite · Each point = one company</div><div class="cw"><canvas id="c-scatter"></canvas></div></div>
+  </div>
+</div>
+
+<!-- COMPANY SCORECARD -->
+<div class="panel" id="p-co">
+  <div class="fr">
+    <span style="font-size:12px;color:var(--mut)">Filter:</span>
+    <select class="fsel" id="stgF" onchange="ft()"><option value="">All Stages</option><option>Series B</option><option>Series C</option><option>Series D</option><option>Public</option></select>
+    <select class="fsel" id="secF" onchange="ft()"><option value="">All Sectors</option></select>
+    <input class="srch" id="coS" placeholder="Search company…" oninput="ft()"/>
+    <span style="font-size:12px;color:var(--mut)" id="cnt">12 companies</span>
+  </div>
+  <div class="tw">
+    <div class="th"><h3>Company Performance Scorecard — Latest Snapshot</h3></div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead><tr>
+          <th onclick="srt('company')">Company ↕</th><th onclick="srt('sector')">Sector ↕</th><th onclick="srt('stage')">Stage ↕</th>
+          <th onclick="srt('arr_raw')">ARR ↕</th><th onclick="srt('nrr')">NRR% ↕</th><th onclick="srt('gm')">GM% ↕</th>
+          <th onclick="srt('r40')">Rule of 40 ↕</th><th onclick="srt('ebitda')">EBITDA% ↕</th>
+          <th onclick="srt('yoy')">YoY% ↕</th><th onclick="srt('churn')">Churn% ↕</th>
+        </tr></thead>
+        <tbody id="coTb"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- SECTOR BENCHMARKS -->
+<div class="panel" id="p-se">
+  <div class="kg">
+    <div class="kc a"><div class="kl">Sectors Tracked</div><div class="kv">12</div><div class="ks nu">AI/ML to Supply Chain</div></div>
+    <div class="kc g"><div class="kl">Top NRR Sector</div><div class="kv">109.2%</div><div class="ks nu">Fintech</div></div>
+    <div class="kc p"><div class="kl">Top Rule of 40</div><div class="kv">33.1</div><div class="ks nu">AI/ML</div></div>
+    <div class="kc y"><div class="kl">Top Gross Margin</div><div class="kv">80.1%</div><div class="ks nu">Fintech</div></div>
+  </div>
+  <div class="g2">
+    <div class="cc"><div class="ct">Rule of 40 by Sector</div><div class="cs">Higher = better · ≥40 = elite</div><div class="cw t"><canvas id="c-sR40"></canvas></div></div>
+    <div class="cc"><div class="ct">Gross Margin by Sector</div><div class="cs">Average gross margin %</div><div class="cw t"><canvas id="c-sGm"></canvas></div></div>
+  </div>
+  <div class="g2">
+    <div class="cc"><div class="ct">NRR by Sector</div><div class="cs">Net Revenue Retention · 100% = break-even</div><div class="cw"><canvas id="c-sNrr"></canvas></div></div>
+    <div class="cc"><div class="ct">EBITDA Margin by Sector</div><div class="cs">Average profitability %</div><div class="cw"><canvas id="c-sEb"></canvas></div></div>
+  </div>
+</div>
+
+<script>
+// ── CHART HELPERS ────────────────────────────────────────────────────────────
+Chart.defaults.color='#7a8fa6';
+Chart.defaults.borderColor='#1e2a3a';
+Chart.defaults.font={family:'-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',size:11};
+
+const AC='#00C2E8',GR='#10b981',YL='#f59e0b',RD='#ef4444',PU='#8b5cf6',OR='#f97316';
+
+function line(id,labels,sets,yx={}){
+  const el=document.getElementById(id); if(!el)return;
+  new Chart(el,{type:'line',data:{labels,datasets:sets},options:{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:sets.length>1,position:'top',labels:{boxWidth:8,padding:12,color:'#7a8fa6'}},tooltip:{mode:'index',intersect:false}},
+    scales:{x:{grid:{color:'#1a2332'},ticks:{maxTicksLimit:12,maxRotation:0,color:'#7a8fa6'}},y:{grid:{color:'#1a2332'},ticks:{color:'#7a8fa6'},...yx}},
+    elements:{point:{radius:0,hoverRadius:4}},
+  }});
+}
+function bar(id,labels,sets,opts={}){
+  const el=document.getElementById(id); if(!el)return;
+  new Chart(el,{type:'bar',data:{labels,datasets:sets},options:{
+    responsive:true,maintainAspectRatio:false,
+    indexAxis:opts.h?'y':'x',
+    plugins:{legend:{display:sets.length>1,position:'top',labels:{boxWidth:8,padding:10,color:'#7a8fa6'}},tooltip:{mode:'index',intersect:false}},
+    scales:{
+      x:{grid:{color:'#1a2332'},ticks:{color:'#7a8fa6'},stacked:!!opts.st,...(opts.x||{})},
+      y:{grid:{color:'#1a2332'},ticks:{color:'#7a8fa6'},stacked:!!opts.st,...(opts.y||{})},
+    },
+  }});
+}
+
+// ── DATA ─────────────────────────────────────────────────────────────────────
+const DL=["2021-01","2021-04","2021-07","2021-10","2022-01","2022-04","2022-07","2022-10","2023-01","2023-04","2023-07","2023-10","2024-01","2024-04","2024-07","2024-10","2025-01","2025-04","2025-07","2025-10","2025-12"];
+const ARR=[0.86,2.1,4.8,9.8,22,55,130,290,680,1600,3800,8700,20000,48000,115000,280000,520000,950000,1400000,1900000,2126823];
+const MRR=[0.072,0.175,0.40,0.82,1.83,4.6,10.8,24.2,56.7,133,317,725,1667,4000,9583,23333,43333,79167,116667,158333,177235];
+const NRR=[105.2,104.9,105.1,104.8,105.0,105.3,104.9,105.1,105.2,105.0,105.3,105.1,105.2,105.4,105.3,105.4,105.2,105.4,105.3,105.4,105.4];
+const GM=[74.4,74.7,74.9,75.1,75.1,75.3,75.4,75.5,75.6,75.8,76.0,76.1,76.2,76.4,76.5,76.6,76.7,76.7,76.8,76.9,76.9];
+const R40=[19.9,20.1,20.2,20.3,20.4,20.5,20.5,20.6,20.7,20.8,20.9,20.9,21.0,21.0,21.1,21.1,21.1,21.1,21.1,21.1,21.1];
+const EBITDA=[0.75,0.9,1.05,1.2,1.35,1.5,1.65,1.8,1.9,2.0,2.1,2.2,2.3,2.4,2.5,2.6,2.7,2.8,2.85,2.9,2.92];
+const CHURN=[1.29,1.30,1.31,1.32,1.32,1.33,1.33,1.34,1.35,1.36,1.37,1.38,1.38,1.39,1.40,1.41,1.41,1.42,1.42,1.42,1.42];
+const BURN=[4.65,12,28,60,130,320,780,1800,4200,9800,22000,51000,85000,150000,210000,280000,340000,420000,480000,570000,6270];
+const LTVCAC=[92,110,135,170,230,340,520,870,1500,2600,4200,6800,8200,9100,10200,11000,11500,11800,12100,12300,12459];
+
+const WL=["Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].map(m=>`${m} 2025`);
+const NEW_MRR=[18200,22100,25400,29800,27900,34600,39800,38200,41900,44700,47800];
+const EXP_MRR=[8100,9800,11600,13800,12900,15900,17700,16800,18600,20600,21900];
+const CHN_MRR=[-3100,-3900,-3500,-4000,-3800,-5000,-4500,-4800,-5000,-5200,-5500];
+
+const SNAPS=[
+  {company:"AutoPilotAI",    sector:"AI/ML",         stage:"Series D", arr:"$1.4T",  arr_raw:1.4e12, nrr:106.4,gm:74.9,ebitda:3.15,yoy:32.8,churn:1.74,ltv_cac:9656,  r40:36.0},
+  {company:"CloudNest",      sector:"Infrastructure",stage:"Public",   arr:"$284B",  arr_raw:284e9,  nrr:104.1,gm:78.2,ebitda:4.20,yoy:19.8,churn:1.22,ltv_cac:8120,  r40:24.0},
+  {company:"DataPulse",      sector:"Analytics",     stage:"Series D", arr:"$198B",  arr_raw:198e9,  nrr:107.3,gm:76.5,ebitda:2.80,yoy:28.4,churn:1.18,ltv_cac:11340, r40:31.2},
+  {company:"EduSphere",      sector:"EdTech",        stage:"Series C", arr:"$42B",   arr_raw:42e9,   nrr:101.2,gm:71.3,ebitda:1.10,yoy:14.3,churn:1.89,ltv_cac:3210,  r40:15.4},
+  {company:"GridSecure",     sector:"Cybersecurity", stage:"Series D", arr:"$156B",  arr_raw:156e9,  nrr:108.9,gm:79.1,ebitda:3.60,yoy:29.5,churn:0.98,ltv_cac:14220, r40:33.1},
+  {company:"HRMatrix",       sector:"HR Tech",       stage:"Series C", arr:"$31B",   arr_raw:31e9,   nrr:103.4,gm:72.8,ebitda:1.80,yoy:16.4,churn:1.65,ltv_cac:4890,  r40:18.2},
+  {company:"LegalEdge",      sector:"LegalTech",     stage:"Series B", arr:"$8.2B",  arr_raw:8.2e9,  nrr:102.1,gm:70.4,ebitda:0.90,yoy:11.4,churn:2.11,ltv_cac:2340,  r40:12.3},
+  {company:"LogistIQ",       sector:"Supply Chain",  stage:"Series C", arr:"$28B",   arr_raw:28e9,   nrr:103.8,gm:68.9,ebitda:1.40,yoy:15.4,churn:1.78,ltv_cac:3680,  r40:16.8},
+  {company:"MediTrack",      sector:"HealthTech",    stage:"Series D", arr:"$89B",   arr_raw:89e9,   nrr:105.6,gm:75.3,ebitda:2.30,yoy:20.1,churn:1.34,ltv_cac:6780,  r40:22.4},
+  {company:"NexaFlow",       sector:"CRM",           stage:"Series C", arr:"$52B",   arr_raw:52e9,   nrr:106.5,gm:74.2,ebitda:1.90,yoy:17.6,churn:1.48,ltv_cac:5890,  r40:19.5},
+  {company:"OmniDesk",       sector:"Support",       stage:"Series B", arr:"$14B",   arr_raw:14e9,   nrr:102.8,gm:73.1,ebitda:1.20,yoy:13.4,churn:1.92,ltv_cac:3120,  r40:14.6},
+  {company:"PayStream",      sector:"Fintech",       stage:"Public",   arr:"$412B",  arr_raw:412e9,  nrr:109.2,gm:80.1,ebitda:5.10,yoy:23.5,churn:0.89,ltv_cac:18640, r40:28.6},
+];
+
+const SECS=[
+  {sector:"AI/ML",         avg_nrr:106.4,avg_gm:74.9,avg_r40:33.1,avg_eb:3.15},
+  {sector:"Fintech",       avg_nrr:103.8,avg_gm:80.1,avg_r40:28.6,avg_eb:5.10},
+  {sector:"Analytics",     avg_nrr:104.7,avg_gm:76.5,avg_r40:28.4,avg_eb:2.80},
+  {sector:"Cybersecurity", avg_nrr:104.2,avg_gm:79.1,avg_r40:26.8,avg_eb:3.60},
+  {sector:"Infrastructure",avg_nrr:103.1,avg_gm:78.2,avg_r40:22.6,avg_eb:4.20},
+  {sector:"HealthTech",    avg_nrr:102.9,avg_gm:75.3,avg_r40:20.3,avg_eb:2.30},
+  {sector:"CRM",           avg_nrr:103.6,avg_gm:74.2,avg_r40:18.8,avg_eb:1.90},
+  {sector:"HR Tech",       avg_nrr:102.4,avg_gm:72.8,avg_r40:16.4,avg_eb:1.80},
+  {sector:"Supply Chain",  avg_nrr:101.8,avg_gm:68.9,avg_r40:15.1,avg_eb:1.40},
+  {sector:"Support",       avg_nrr:101.2,avg_gm:73.1,avg_r40:13.8,avg_eb:1.20},
+  {sector:"EdTech",        avg_nrr:100.8,avg_gm:71.3,avg_r40:13.2,avg_eb:1.10},
+  {sector:"LegalTech",     avg_nrr:100.4,avg_gm:70.4,avg_r40:11.6,avg_eb:0.90},
+];
+
+// ── BUILD CHARTS ─────────────────────────────────────────────────────────────
+function buildCharts(){
+  // ARR + MRR (log scale)
+  line('c-arrMrr',DL,[
+    {label:'ARR ($M)',data:ARR,borderColor:AC,backgroundColor:'rgba(0,194,232,.06)',fill:true,tension:.4,borderWidth:2},
+    {label:'MRR ($M)',data:MRR,borderColor:GR,tension:.4,borderWidth:1.5,borderDash:[5,3]},
+  ],{type:'logarithmic'});
+
+  line('c-nrr',DL,[{label:'Avg NRR %',data:NRR,borderColor:GR,backgroundColor:'rgba(16,185,129,.07)',fill:true,tension:.4,borderWidth:2}],{min:100,suggestedMax:112});
+  line('c-gm',DL,[{label:'Gross Margin %',data:GM,borderColor:YL,backgroundColor:'rgba(245,158,11,.07)',fill:true,tension:.4,borderWidth:2}],{min:65,suggestedMax:85});
+  line('c-r40',DL,[{label:'Rule of 40',data:R40,borderColor:PU,backgroundColor:'rgba(139,92,246,.07)',fill:true,tension:.4,borderWidth:2}]);
+  line('c-ebitda',DL,[{label:'EBITDA Margin %',data:EBITDA,borderColor:OR,backgroundColor:'rgba(249,115,22,.07)',fill:true,tension:.4,borderWidth:2}]);
+  line('c-churn',DL,[{label:'Logo Churn %',data:CHURN,borderColor:RD,backgroundColor:'rgba(239,68,68,.07)',fill:true,tension:.4,borderWidth:2}]);
+  line('c-burn',DL,[{label:'Cash Burn ($K)',data:BURN,borderColor:YL,backgroundColor:'rgba(245,158,11,.07)',fill:true,tension:.4,borderWidth:2}]);
+  line('c-ltvcac',DL,[{label:'LTV/CAC',data:LTVCAC,borderColor:AC,backgroundColor:'rgba(0,194,232,.07)',fill:true,tension:.4,borderWidth:2}]);
+
+  bar('c-wfall',WL,[
+    {label:'New MRR',  data:NEW_MRR,backgroundColor:'rgba(16,185,129,.75)', borderRadius:4},
+    {label:'Expansion',data:EXP_MRR,backgroundColor:'rgba(0,194,232,.75)',  borderRadius:4},
+    {label:'Churned',  data:CHN_MRR,backgroundColor:'rgba(239,68,68,.75)',  borderRadius:4},
+  ],{st:true});
+
+  const cN=SNAPS.map(s=>s.company);
+  bar('c-coLtv',cN,[{label:'LTV/CAC',data:SNAPS.map(s=>Math.min(s.ltv_cac,20000)),backgroundColor:SNAPS.map(s=>s.ltv_cac>8000?AC:s.ltv_cac>3000?GR:YL),borderRadius:3}],{h:true});
+  bar('c-coNrr',cN,[{label:'NRR %',data:SNAPS.map(s=>s.nrr),backgroundColor:SNAPS.map(s=>s.nrr>=107?AC:s.nrr>=104?GR:YL),borderRadius:3}],{h:true,x:{min:98,max:112}});
+
+  // Scatter
+  const sc=document.getElementById('c-scatter');
+  if(sc) new Chart(sc,{type:'scatter',data:{datasets:[{
+    data:SNAPS.map(s=>({x:s.yoy,y:s.ebitda,label:s.company})),
+    backgroundColor:SNAPS.map(s=>(s.yoy+s.ebitda)>=30?'rgba(0,194,232,.85)':'rgba(139,92,246,.6)'),
+    pointRadius:9,pointHoverRadius:12,
+  }]},options:{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw.label}: YoY ${c.raw.x}% | EBITDA ${c.raw.y}%`}}},
+    scales:{x:{title:{display:true,text:'YoY Growth %',color:'#7a8fa6'},grid:{color:'#1e2a3a'},ticks:{color:'#7a8fa6'}},y:{title:{display:true,text:'EBITDA Margin %',color:'#7a8fa6'},grid:{color:'#1e2a3a'},ticks:{color:'#7a8fa6'}}},
+  }});
+
+  const sN=SECS.map(s=>s.sector);
+  bar('c-sR40', sN,[{label:'Rule of 40',  data:SECS.map(s=>s.avg_r40),backgroundColor:SECS.map(s=>s.avg_r40>=28?AC:s.avg_r40>=18?GR:YL),borderRadius:3}],{h:true});
+  bar('c-sGm',  sN,[{label:'Gross Margin %',data:SECS.map(s=>s.avg_gm),backgroundColor:'rgba(245,158,11,.75)',borderRadius:3}],{h:true,x:{min:60}});
+  bar('c-sNrr', sN,[{label:'NRR %',       data:SECS.map(s=>s.avg_nrr),backgroundColor:SECS.map(s=>s.avg_nrr>=105?AC:GR),borderRadius:3}],{h:true});
+  bar('c-sEb',  sN,[{label:'EBITDA %',    data:SECS.map(s=>s.avg_eb), backgroundColor:OR,borderRadius:3}],{h:true});
+}
+
+// ── TABLE ────────────────────────────────────────────────────────────────────
+let fd=[...SNAPS], sk='arr_raw', sd=1;
+
+function stageBadge(s){
+  const m={'Series B':'bsb','Series C':'bsc','Series D':'bsd','Public':'bpu'};
+  return`<span class="badge ${m[s]||'bsc'}">${s}</span>`;
+}
+function clr(v,hi,lo){return v>=hi?'up':v>=lo?'nu':'dn'}
+
+function renderTbl(){
+  document.getElementById('coTb').innerHTML=fd.map(s=>{
+    const r40=s.yoy+s.ebitda;
+    return`<tr>
+      <td><strong>${s.company}</strong></td>
+      <td style="color:var(--mut)">${s.sector}</td>
+      <td>${stageBadge(s.stage)}</td>
+      <td style="font-weight:600">${s.arr}</td>
+      <td class="${clr(s.nrr,107,103)}">${s.nrr.toFixed(1)}%</td>
+      <td class="${clr(s.gm,76,72)}">${s.gm.toFixed(1)}%</td>
+      <td class="${clr(r40,30,18)}">${r40.toFixed(1)}</td>
+      <td class="${s.ebitda>0?'up':'dn'}">${s.ebitda.toFixed(2)}%</td>
+      <td class="${clr(s.yoy,25,15)}">${s.yoy.toFixed(1)}%</td>
+      <td class="${s.churn<1.2?'up':s.churn<1.8?'nu':'dn'}">${s.churn.toFixed(2)}%</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('cnt').textContent=fd.length+' companies';
+}
+
+function ft(){
+  const stg=document.getElementById('stgF').value;
+  const sec=document.getElementById('secF').value;
+  const q=(document.getElementById('coS').value||'').toLowerCase();
+  fd=SNAPS.filter(s=>(!stg||s.stage===stg)&&(!sec||s.sector===sec)&&(!q||s.company.toLowerCase().includes(q)));
+  renderTbl();
+}
+
+function srt(k){
+  sd=sk===k?-sd:1; sk=k;
+  fd.sort((a,b)=>typeof a[k]==='string'?sd*a[k].localeCompare(b[k]):sd*(a[k]-b[k]));
+  renderTbl();
+}
+
+// ── TABS ─────────────────────────────────────────────────────────────────────
+function sw(el,id){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+  el.classList.add('on');
+  document.getElementById('p-'+id).classList.add('on');
+}
+
+// ── POPULATE SECTOR FILTER ───────────────────────────────────────────────────
+function populateSec(){
+  const sel=document.getElementById('secF');
+  [...new Set(SNAPS.map(s=>s.sector))].sort().forEach(s=>{
+    const o=document.createElement('option');o.value=s;o.textContent=s;sel.appendChild(o);
+  });
+}
+
+buildCharts();
+populateSec();
+renderTbl();
+</script>
+</body>
+</html>
